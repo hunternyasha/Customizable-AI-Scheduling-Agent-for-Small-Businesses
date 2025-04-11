@@ -1,0 +1,90 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, staging, development]
+  pull_request:
+    branches: [main, staging, development]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install Backend Dependencies
+        working-directory: ./backend
+        run: npm ci
+      
+      - name: Run Backend Tests
+        working-directory: ./backend
+        run: npm test
+        
+      - name: Install Frontend Dependencies
+        working-directory: ./frontend/scheduling_agent_frontend
+        run: npm ci
+        
+      - name: Run Frontend Tests
+        working-directory: ./frontend/scheduling_agent_frontend
+        run: npm test
+
+  deploy-development:
+    needs: test
+    if: github.ref == 'refs/heads/development'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Install Vercel CLI
+        run: npm install --global vercel
+        
+      - name: Deploy Backend to Vercel (Development)
+        working-directory: ./backend
+        run: vercel deploy --token ${{ secrets.VERCEL_TOKEN }} --env NODE_ENV=development --confirm
+        
+      - name: Deploy Frontend to Vercel (Development)
+        working-directory: ./frontend/scheduling_agent_frontend
+        run: vercel deploy --token ${{ secrets.VERCEL_TOKEN }} --env NODE_ENV=development --confirm
+
+  deploy-staging:
+    needs: test
+    if: github.ref == 'refs/heads/staging'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Install Vercel CLI
+        run: npm install --global vercel
+        
+      - name: Deploy Backend to Vercel (Staging)
+        working-directory: ./backend
+        run: vercel deploy --token ${{ secrets.VERCEL_TOKEN }} --env NODE_ENV=staging --confirm
+        
+      - name: Deploy Frontend to Vercel (Staging)
+        working-directory: ./frontend/scheduling_agent_frontend
+        run: vercel deploy --token ${{ secrets.VERCEL_TOKEN }} --env NODE_ENV=staging --confirm
+
+  deploy-production:
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Install Vercel CLI
+        run: npm install --global vercel
+        
+      - name: Deploy Backend to Vercel (Production)
+        working-directory: ./backend
+        run: vercel deploy --token ${{ secrets.VERCEL_TOKEN }} --prod --env NODE_ENV=production --confirm
+        
+      - name: Deploy Frontend to Vercel (Production)
+        working-directory: ./frontend/scheduling_agent_frontend
+        run: vercel deploy --token ${{ secrets.VERCEL_TOKEN }} --prod --env NODE_ENV=production --confirm
